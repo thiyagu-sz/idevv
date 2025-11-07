@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>iDEV - Portfolio</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- GSAP (GreenSock Animation Platform) & ScrollTrigger Plugin -->
+    <!-- We need these for the advanced scroll and hover animations -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+    <!-- Fonts: Using Inter as a modern sans-serif approximation from the video -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Chosen Palette: White & Red (from video) -->
+    <!-- Application Structure Plan: A faithful recreation of the single-page site from the video, but populated with iDEV content. Structure: 1. Header (with scroll shadow), 2. Hero (iDEV content), 3. Services (iDEV 10 services, with JS hover-reveal images), 4. About Us (iDEV story, with GSAP stats counter & logo marquee), 5. Featured Projects (GSAP sticky-stacking cards), 6. How We Work (Now "Our Team" with iDEV roles), 7. Meet Our Team (Removed, combined into new "Our Team" section), 8. Pricing (Kept as-is), 9. Testimonials (Kept as-is), 10. FAQ (Kept as-is), 11. Insights (Kept as-is), 12. Footer (iDEV contact info). -->
+    <!-- Visualization & Content Choices: 1. Header -> Goal: UI Polish -> Method: JS onScroll listener adds shadow -> Lib: JS. 2. Services List -> Goal: Interactive reveal -> Method: Image appears on hover and follows cursor with tilt. Adapted for 10 services. -> Lib: JS/GSAP. 3. Stats -> Goal: Dynamic Data (Video Stats) -> Method: Numbers count up to 9, 459, 129, 90 (Kept from video) -> Lib: GSAP (ScrollTrigger). 4. Featured Projects -> Goal: "Wow" factor -> Method: Cards scale down and stack on top of each other as user scrolls -> Lib: GSAP (ScrollTrigger, sticky, pin). 5. Pricing -> Goal: Functional UI -> Method: JS toggle switches between monthly/annual prices -> Lib: JS. 6. FAQ -> Goal: Functional UI -> Method: JS accordion toggles content and icon rotation -> Lib: JS. 7. Form -> Goal: Functional UI -> Method: JS submit listener logs data to console -> Lib: JS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #ffffff;
+            color: #1a1a1a;
+            overflow-x: hidden;
+        }
+
+        /* Header shadow on scroll */
+        .header-scrolled {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        /* Hero Text */
+        .hero-text {
+            font-size: clamp(3.5rem, 10vw, 9rem);
+            font-weight: 900;
+            line-height: 1;
+            letter-spacing: -0.04em;
+        }
+
+        /* Service Hover Effect */
+        .service-item-container {
+            position: relative;
+        }
+        
+        .service-hover-image {
+            position: fixed; /* Use fixed positioning for viewport-relative movement */
+            top: 0;
+            left: 0;
+            width: 300px;
+            height: 400px;
+            object-fit: cover;
+            border-radius: 1rem;
+            pointer-events: none;
+            opacity: 0;
+            transform: translate(-50%, -50%) scale(0.8) rotate(0deg); /* Start small */
+            transform-style: preserve-3d;
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            z-index: 50;
+            will-change: transform, opacity;
+        }
+        
+        .service-item:hover ~ .service-hover-image {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1) rotate(0deg); /* Scale to full size */
+        }
+
+        .service-item {
+            border-bottom: 2px solid #eee;
+            transition: border-color 0.3s ease;
+        }
+        
+        .service-item:hover {
+            border-color: #ff4d4d;
+        }
+
+        /* Logo Marquee */
+        .logo-marquee-track {
+            display: flex;
+            width: max-content;
+            animation: marquee 30s linear infinite;
+        }
+        .logo-marquee-track > * {
+            flex-shrink: 0;
+            padding: 0 3vw;
+        }
+        @keyframes marquee {
+            0% { transform: translateX(0%); }
+            100% { transform: translateX(-50%); }
+        }
+
+        /* Project Sticky Stack */
+        .project-stack-container {
+            position: relative;
+            /* Height is 100vh for the pinned section + 100vh per *additional* card */
+            height: 300vh; 
+        }
+        
+        .project-card-wrapper {
+            position: sticky;
+            top: 10vh; /* Pin 10vh from top */
+            height: 80vh;
+            width: 100%;
+        }
+
+        .project-card {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border-radius: 1.5rem; /* 24px */
+            overflow: hidden;
+            display: flex;
+            align-items: flex-end;
+            padding: 2rem;
+            will-change: transform;
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Pricing Toggle */
+        .pricing-toggle-bg {
+            transition: all 0.3s ease;
+        }
+        .pricing-toggle-dot {
+            transition: all 0.3s ease;
+        }
+        /* This is the "active" state for the toggle */
+        .pricing-toggle.annual .pricing-toggle-bg {
+            background-color: #ff4d4d;
+        }
+        .pricing-toggle.annual .pricing-toggle-dot {
+            transform: translateX(1.5rem); /* 24px */
+        }
+        
+        .price-monthly, .price-annual {
+            display: none; /* Hide both by default */
+        }
+        /* Show the correct one based on parent class */
+        .pricing-container.show-monthly .price-monthly { display: block; }
+        .pricing-container.show-annual .price-annual { display: block; }
+
+        /* Testimonials Horizontal Scroll */
+        .testimonial-container {
+            display: flex;
+            overflow-x: auto;
+            padding: 2rem 0;
+            scrollbar-width: none; /* Firefox */
+        }
+        .testimonial-container::-webkit-scrollbar {
+            display: none; /* Safari/Chrome */
+        }
+        .testimonial-card {
+            flex-shrink: 0;
+            width: 350px;
+        }
+
+        /* FAQ Accordion */
+        .faq-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease-in-out, padding-top 0.5s ease;
+        }
+        .faq-item.active .faq-content {
+            max-height: 200px; /* Adjust as needed */
+            padding-top: 0.5rem;
+        }
+        .faq-item.active .plus-icon {
+            transform: rotate(45deg);
+        }
+        .plus-icon {
+            transition: transform 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-white">
+
+    <!-- Header (Video Version) -->
+    <header id="main-header" class="fixed top-0 left-0 right-0 z-40 bg-white/80 backdrop-blur-md transition-shadow duration-300">
+        <div class="container mx-auto px-6 py-5 flex justify-between items-center">
+            <a href="#" class="font-black text-2xl">iDEV</a>
+            <nav class="hidden md:flex items-center space-x-6">
+                <a href="#services" class="hover:text-[#ff4d4d] transition-colors">Services</a>
+                <a href="#about" class="hover:text-[#ff4d4d] transition-colors">About</a>
+                <a href="#projects" class="hover:text-[#ff4d4d] transition-colors">Projects</a>
+                <a href="#team" class="hover:text-[#ff4d4d] transition-colors">Team</a>
+                <a href="#contact" class="hover:text-[#ff4d4d] transition-colors">Contact</a>
+            </nav>
+            <a href="#contact" class="hidden md:inline-block bg-[#1a1a1a] text-white px-6 py-3 rounded-full hover:bg-[#333] transition-colors font-semibold">
+                Get Started
+            </a>
+        </div>
+    </header>
+
+    <main>
+
+        <!-- Hero Section -->
+        <section class="min-h-screen flex flex-col justify-center pt-32 pb-16 px-6">
+            <div class="container mx-auto">
+                <h1 class="hero-text text-left">
+                    <span class="text-[#ff4d4d]">*</span> We Don’t Just Create.
+                    <br>
+                    We Elevate.
+                </h1>
+                <p class="text-xl max-w-lg mt-6 text-gray-600">
+                    Inspired by success, we turn ideas into impact through teamwork and passion.
+                </p>
+                <!-- <div class="mt-12 flex items-center space-x-4">
+                    <div class="flex -space-x-3">
+                        <img class="w-12 h-12 rounded-full border-2 border-white object-cover" src="https://placehold.co/100x100/FFC0CB/000?text=D" alt="Team member 1" title="Developer">
+                        <img class="w-12 h-12 rounded-full border-2 border-white object-cover" src="https://placehold.co/100x100/C0CBFF/000?text=C" alt="Team member 2" title="Creator">
+                        <img class="w-12 h-12 rounded-full border-2 border-white object-cover" src="https://placehold.co/100x100/CBFFC0/000?text=S" alt="Team member 3" title="SEO">
+                    </div>
+                    <span class="font-semibold">Meet Our Team</span>
+                    <a href="#team" class="w-12 h-12 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-100 transition-colors">
+                        &rarr;
+                    </a>
+                </div> -->
+            </div>
+            
+            <!-- Floating Image in Corner (from video) -->
+            <div class="hidden lg:block absolute bottom-16 right-16 w-64 h-40 bg-gray-100 rounded-lg shadow-lg p-3">
+                <div class="w-full h-full bg-white rounded-md flex items-center justify-center text-center p-4">
+                    <span class="font-bold text-lg text-gray-700">CREATING WORK<br>THAT INSPIRES</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Services Section (Video Version with Hover) -->
+        <section id="services" class="py-20 md:py-32 px-6 service-item-container">
+            <div class="container mx-auto">
+                <p class="text-sm text-gray-500 mb-4"> Service we Provide </p>
+                <h2 class="text-4xl md:text-6xl font-bold mb-12">EXPLORE WHAT WE CAN DO FOR YOU</h2>
+                
+                <div class="space-y-4">
+                    <!-- Service 1 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/FFC0CB/000?text=Web+App">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">01</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">WEB APPLICATION</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Development</span>
+                    </a>
+                    <!-- Service 2 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/C0CBFF/000?text=Portfolio">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">02</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">PORTFOLIO</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Web Design</span>
+                    </a>
+                    <!-- Service 3 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/CBFFC0/000?text=Mobile+App">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">03</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">MOBILE APPLICATION</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Development</span>
+                    </a>
+                    <!-- Service 4 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/FFFDC0/000?text=Content">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">04</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">CONTENT CREATION</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Creative</span>
+                    </a>
+                    <!-- Service 5 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/FFC0F0/000?text=SEO">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">05</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">SEO</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Marketing</span>
+                    </a>
+                    <!-- Service 6 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/F0FFC0/000?text=Marketing">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">06</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">DIGITAL MARKETING</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Marketing</span>
+                    </a>
+                    <!-- Service 7 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/C0FFF0/000?text=Social">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">07</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">SOCIAL MEDIA HANDLING</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Social</span>
+                    </a>
+                    <!-- Service 8 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/C0F0FF/000?text=Events">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">08</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">EVENTS MANAGEMENT</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Events</span>
+                    </a>
+                    
+                    <!-- Service 10 -->
+                    <a href="#" class="service-item flex justify-between items-center py-8" data-img="https://placehold.co/600x800/FFD0C0/000?text=Consulting">
+                        <span class="text-lg text-[#ff4d4d] font-semibold">09</span>
+                        <h3 class="text-3xl md:text-5xl font-bold">CONSULTING</h3>
+                        <span class="text-lg text-gray-500 hidden md:block">Strategy</span>
+                    </a>
+                </div>
+                
+                <!-- This image will be shown on hover and follow the cursor -->
+                <img src="" alt="Service Image" class="service-hover-image">
+            </div>
+        </section>
+
+        <!-- About Us Section (iDEV Version) -->
+        <section id="about" class="py-20 md:py-32 px-6 bg-gray-50">
+            <div class="container mx-auto">
+                <div class="flex justify-between items-center mb-12">
+                     <h2 class="text-3xl md:text-5xl font-bold max-w-lg">WE ARE LEADING DIGITAL CREATORS</h2>
+                     <p class="text-sm text-gray-500 hidden md:block">{ Who We Are }</p>
+                </div>
+               
+                <div class="grid lg:grid-cols-5 gap-8 items-start">
+                    <!-- Left Column (3/5 width) -->
+                    <div class="lg:col-span-3 relative">
+                        <div class="w-full h-[600px] rounded-2xl overflow-hidden">
+                            <img src="img/generated_image_2.png" alt="Agency office" class="w-full h-full object-cover">
+                        </div>
+                        <!-- Circular Badge -->
+                        <div class="absolute bottom-8 left-8 w-32 h-32 bg-white rounded-full flex items-center justify-center p-2 shadow-lg">
+                            <div class="w-full h-full rounded-full border border-gray-200 flex items-center justify-center text-center">
+                                <span class="text-xs font-semibold text-gray-600">SOLUTION • CREATE • INSIGHT</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column (2/5 width) -->
+                    <div class="lg:col-span-2 space-y-8">
+                        <!-- Our Story Box -->
+                        <div class="bg-white rounded-2xl p-8 shadow-sm">
+                            <h3 class="text-xl font-bold mb-4">Our story</h3>
+                            <p class="text-gray-600 text-lg">It all began in college, with a boy passionate about organizing events beyond academics. Along the way, he built a team of talented individuals, each skilled in their own field. Together, they collaborated on projects for two clients, achieving remarkable success. Inspired by that milestone, he envisioned forming a startup with the same team. Their shared goal was simple — to grow together while delivering creative excellence. And that’s how our journey began, turning ideas into impact through teamwork and passion.</p>
+                        </div>
+                        <!-- Smaller Image Box (Person in Red Hoodie) -->
+                        <div class="w-full h-80 rounded-2xl overflow-hidden">
+                            <img src="img/generated_image.png" alt="Team member working" class="w-full h-full object-cover">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Video Stats Row (Kept from video) -->
+                <div class="mt-24 grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+                    <div>
+                        <span class="stat-number text-5xl md:text-7xl font-bold" data-target="9">3</span><span class="text-5xl md:text-7xl font-bold text-[#ff4d4d]">+</span>
+                        <p class="mt-2 text-gray-600">Years Experience</p>
+                    </div>
+                    <div>
+                        <span class="stat-number text-5xl md:text-7xl font-bold" data-target="459">20</span><span class="text-5xl md:text-7xl font-bold text-[#ff4d4d]">+</span>
+                        <p class="mt-2 text-gray-600">Projects Done</p>
+                    </div>
+                    <!-- <div>
+                        <span class="stat-number text-5xl md:text-7xl font-bold" data-target="129">0</span><span class="text-5xl md:text-7xl font-bold text-[#ff4d4d]">+</span>
+                        <p class="mt-2 text-gray-600">Happy Clients</p>
+                    </div>
+                    <div>
+                        <span class="stat-number text-5xl md:text-7xl font-bold" data-target="90">0</span><span class="text-5xl md:text-7xl font-bold text-[#ff4d4d]">%</span>
+                        <p class="mt-2 text-gray-600">Satisfied Clients</p>
+                    </div> -->
+                </div>
+            </div>
+            
+            <!-- Logo Marquee -->
+            <!-- <div class="relative flex mt-24 overflow-hidden">
+                <div class="logo-marquee-track">
+                
+                    <span class="text-2xl font-bold text-gray-400">logoipsum</span>
+                    <span class="text-2xl font-bold text-gray-400">LOGOIPSUM</span>
+                    <span class="text-2xl font-bold text-gray-400">Logoipsum</span>
+                    <span class="text-2xl font-bold text-gray-400">logoipsum</span>
+                    <span class="text-2xl font-bold text-gray-400">LOGOIPSUM</span>
+                    <span class="text-2xl font-bold text-gray-400">Logoipsum</span>
+                    
+                    <span class="text-2xl font-bold text-gray-400">logoipsum</span>
+                    <span class="text-2xl font-bold text-gray-400">LOGOIPSUM</span>
+                    <span class="text-2xl font-bold text-gray-400">Logoipsum</span>
+                    <span class="text-2xl font-bold text-gray-400">logoipsum</span>
+                    <span class="text-2xl font-bold text-gray-400">LOGOIPSUM</span>
+                    <span class="text-2xl font-bold text-gray-400">Logoipsum</span>
+                </div>
+            </div> -->
+        </section>
+        
+    
+        <!-- <section id="projects" class="py-12 md:py-24 px-6 bg-white">
+            <div class="container mx-auto">
+                <p class="text-sm text-gray-500 mb-4"> Featured Projects </p>
+                <h2 class="text-4xl md:text-6xl font-bold mb-12">SHOWCASING OUR MOST IMPACTFUL WORK</h2>
+            </div>
+         
+            <div class="project-stack-container container mx-auto">
+
+                <div class="project-card-wrapper">
+              
+                    <div class="project-card" style="background-image: url('https://images.unsplash.com/photo-1679086118347-1369BA6208c5?crop=entropy&cs=srgb&fm=jpg&ixid=M3wzMzM4Njd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGRhcmslMjBjdWJlcyUyMGRpZ2l0YWwlMjBhcnR8ZW58MHx8fHwxNzE5MTc4NDQyfDA&ixlib=rb-4.0.3&q=85&w=1920');">
+                        <div class="text-white">
+                            <span class="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm">Marketing</span>
+                            <h3 class="text-5xl font-bold mt-4">VELOCITY</h3>
+                        </div>
+                    </div>
+               
+                    <div class="project-card" style="background-image: url('https://images.unsplash.com/photo-1691223224328-356c1022f6d0?crop=entropy&cs=srgb&fm=jpg&ixid=M3wzMzM4Njd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMHJlZCUyMGxpZ2h0JTIwbmVvbnxlbnwwfHx8fDE3MTkxNzg0NDJ8MA&ixlib=rb-4.0.3&q=85&w=1920');">
+                        <div class="text-white">
+                            <span class="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm">Web design</span>
+                            <h3 class="text-5xl font-bold mt-4">THE PERFECT FRAME</h3>
+                        </div>
+                    </div>
+        
+                    <div class="project-card" style="background-image: url('https://images.unsplash.com/photo-1681207869083-8f352787f0b2?crop=entropy&cs=srgb&fm=jpg&ixid=M3wzMzM4Njd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMGJsdWUlMjBkaWdpdGFsJTIwYXJ0fGVufDB8fHx8MTcxOTE3ODQ0M3ww&ixlib=rb-4.0.3&q=85&w=1920');">
+                        <div class="text-white">
+                            <span class="px-4 py-2 bg-white/20 backdrop-blur-sm text-white rounded-full text-sm">Marketing</span>
+                            <h3 class="text-5xl font-bold mt-4">SPREADING THE WORD</h3>
+                        </div>
+                    </div>
+          
+                    <div class="project-card" style="background-image: url('https://images.unsplash.com/photo-1690185110191-b0e3Kc53d5e0?crop=entropy&cs=srgb&fm=jpg&ixid=M3wzMzM4Njd8MHwxfHNlYXJjaHwxfHxhYnN0cmFjdCUyMHdoaXRlJTIwbWluaW1hbCUyMGRpZ2l0YWwlMjBhcnR8ZW58MHx8fHwxNzE5MTc4NDQzfDA&ixlib=rb-4.0.3&q=85&w=1920');">
+                        <div class="text-black">
+                            <span class="px-4 py-2 bg-black/10 backdrop-blur-sm text-black rounded-full text-sm">Branding</span>
+                            <h3 class="text-5xl font-bold mt-4">FRESH BEGINNINGS</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section> -->
+        
+        <!-- How We Work Section (REPLACED WITH TEAM) -->
+        <section id="team" class="py-20 md:py-32 px-6 bg-gray-50">
+            <div class="container mx-auto">
+                <p class="text-sm text-gray-500 mb-4">{ Team we have }</p>
+                <h2 class="text-4xl md:text-6xl font-bold mb-12">CREATIVE PROFESSIONALS AT YOUR SERVICE</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    <!-- Team Role 1 -->
+                    <div class="space-y-4">
+                        <div class="w-full h-96 rounded-2xl overflow-hidden bg-gray-100">
+                             <img src="img/generated_image_5.png" alt="Front & Backend Developers" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-xl font-bold">Front & Backend Developers</h3>
+                        <p class="text-gray-600">Building your vision</p>
+                    </div>
+                    <!-- Team Role 2 -->
+                    <div class="space-y-4">
+                        <div class="w-full h-96 rounded-2xl overflow-hidden bg-gray-100">
+                            <img src="img/generated_image_4.png" alt="Content Creators" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-xl font-bold">Content Creators</h3>
+                        <p class="text-gray-600">Telling your story</p>
+                    </div>
+                    <!-- Team Role 3 -->
+                    <div class="space-y-4">
+                        <div class="w-full h-96 rounded-2xl overflow-hidden bg-gray-100">
+                            <img src="img/generated_image_3.png" alt="SEO Specialists" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-xl font-bold">SEO Specialists</h3>
+                        <p class="text-gray-600">Getting you seen</p>
+                    </div>
+                    <!-- Team Role 4 -->
+                    <div class="space-y-4">
+                        <div class="w-full h-96 rounded-2xl overflow-hidden bg-gray-100">
+                            <img src="img/generated_image_2.png" alt="Social Media Handlers" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-xl font-bold">Social Media Handlers</h3>
+                        <p class="text-gray-600">Engaging your audience</p>
+                    </div>
+                    <!-- Team Role 5 -->
+                    <div class="space-y-4">
+                        <div class="w-full h-96 rounded-2xl overflow-hidden bg-gray-100">
+                            <img src="img/eve.png" alt="Event Management Team" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-xl font-bold">Event Management Team</h3>
+                        <p class="text-gray-600">Creating experiences</p>
+                    </div>
+                    <!-- Team Role 6 -->
+                    <div class="space-y-4">
+                        <div class="w-full h-96 rounded-2xl overflow-hidden bg-gray-100">
+                            <img src="img/generated_image_1.png" alt="Digital Marketing Team" class="w-full h-full object-cover">
+                        </div>
+                        <h3 class="text-xl font-bold">Digital Marketing Team</h3>
+                        <p class="text-gray-600">Driving your growth</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Pricing Section (Kept from video) -->
+        <!-- <section id="pricing" class="py-20 md:py-32 px-6 bg-white">
+            <div class="container mx-auto">
+                <p class="text-sm text-gray-500 mb-4">{ Our Pricing Plans }</p>
+                <h2 class="text-4xl md:text-6xl font-bold mb-12">CHOOSE THE PERFECT PLAN FOR YOUR BUSINESS</h2>
+                
+                <div class="flex justify-center items-center space-x-4 mb-12">
+                    <span class="font-semibold text-lg">Monthly</span>
+                    <button id="pricing-toggle" class="pricing-toggle relative w-14 h-8 bg-gray-200 rounded-full p-1 cursor-pointer">
+                        <div class="pricing-toggle-bg absolute inset-0 rounded-full bg-gray-200"></div>
+                        <div class="pricing-toggle-dot relative w-6 h-6 bg-white rounded-full shadow-md"></div>
+                    </button>
+                    <span class="font-semibold text-lg">Annual</span>
+                </div>
+                
+                <div id="pricing-container" class="grid lg:grid-cols-3 gap-8 pricing-container show-monthly">
+                    Basic Plan
+                    <div class="border border-gray-200 rounded-2xl p-8 space-y-6">
+                        <h3 class="text-2xl font-bold">Basic</h3>
+                        <div class="price-monthly">
+                            <span class="text-5xl font-bold">$499</span>
+                            <span class="text-gray-600">/month</span>
+                        </div>
+                        <div class="price-annual">
+                            <span class="text-5xl font-bold">$4990</span>
+                            <span class="text-gray-600">/year</span>
+                        </div>
+                        <p class="text-gray-600">Freelancers and small businesses</p>
+                        <a href="#" class="w-full block text-center bg-black text-white py-3 rounded-full font-semibold hover:bg-gray-800 transition-colors">Get Started &rarr;</a>
+                        <ul class="space-y-3 pt-4">
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Brand design and development</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Premium website design</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>8 blog posts per month</span></li>
+                        </ul>
+                    </div>
+                    
+              
+                    <div class="border-2 border-[#ff4d4d] rounded-2xl p-8 space-y-6 shadow-lg relative">
+                        <span class="absolute -top-3 left-1/2 -translate-x-1/2 bg-[#ff4d4d] text-white px-3 py-1 rounded-full text-sm font-semibold">Most Popular</span>
+                        <h3 class="text-2xl font-bold">Growth</h3>
+                         <div class="price-monthly">
+                            <span class="text-5xl font-bold">$799</span>
+                            <span class="text-gray-600">/month</span>
+                        </div>
+                        <div class="price-annual">
+                            <span class="text-5xl font-bold">$7990</span>
+                            <span class="text-gray-600">/year</span>
+                        </div>
+                        <p class="text-gray-600">Agencies and startups</p>
+                        <a href="#" class="w-full block text-center bg-[#ff4d4d] text-white py-3 rounded-full font-semibold hover:bg-[#ff2d2d] transition-colors">Get Started &rarr;</a>
+                        <ul class="space-y-3 pt-4">
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Brand design and development</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Premium website design</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>8 blog posts per month</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>4 email marketing campaigns</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Social media management</span></li>
+                        </ul>
+                    </div>
+            
+                    <div class="border border-gray-200 rounded-2xl p-8 space-y-6">
+                        <h3 class="text-2xl font-bold">Professional</h3>
+                         <div class="price-monthly">
+                            <span class="text-5xl font-bold">$1599</span>
+                            <span class="text-gray-600">/month</span>
+                        </div>
+                        <div class="price-annual">
+                            <span class="text-5xl font-bold">$15990</span>
+                            <span class="text-gray-600">/year</span>
+                        </div>
+                        <p class="text-gray-600">Established enterprises</p>
+                        <a href="#" class="w-full block text-center bg-black text-white py-3 rounded-full font-semibold hover:bg-gray-800 transition-colors">Get Started &rarr;</a>
+                        <ul class="space-y-3 pt-4">
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Brand design and development</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Premium website design</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>8 blog posts per month</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>4 email marketing campaigns</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Social media management</span></li>
+                            <li class="flex items-center space-x-2"><span class="text-green-500">&#10003;</span> <span>Search Engine Optimization (SEO)</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section> -->
+
+        <!-- Testimonials Section -->
+        <!-- <section class="py-20 md:py-32 px-6">
+            <div class="container mx-auto">
+                 <p class="text-sm text-gray-500 mb-4">What Our Clients Are Saying </p>
+                <h2 class="text-4xl md:text-6xl font-bold mb-12">TESTIMONIALS THAT INSPIRE CONFIDENCE</h2>
+            </div>
+
+            <div class="testimonial-container space-x-8 pl-6 md:pl-16 lg:pl-32">
+          
+                <div class="testimonial-card p-6 bg-gray-50 rounded-2xl space-y-4">
+                    <div class="text-yellow-500 text-xl">★★★★★</div>
+                    <p class="text-lg">"They don't just design—they understand your business. The brand strategy workshop alone was worth the investment."</p>
+                    <div class="pt-2">
+                        <h4 class="font-bold">Jason Turner</h4>
+                        <p class="text-sm text-gray-600">Startup Founder</p>
+                    </div>
+                </div>
+
+                <div class="testimonial-card p-6 bg-gray-50 rounded-2xl space-y-4">
+                    <div class="text-yellow-500 text-xl">★★★★☆</div>
+                    <p class="text-lg">"Working with iDEV was smooth from day one. The designs were sharp, the communication was clear, and the delivery was on point."</p>
+                    <div class="pt-2">
+                        <h4 class="font-bold">Mia Reynolds</h4>
+                        <p class="text-sm text-gray-600">Creative Director</p>
+                    </div>
+                </div>
+         
+                <div class="testimonial-card p-6 bg-gray-50 rounded-2xl space-y-4">
+                    <div class="text-yellow-500 text-xl">★★★★★</div>
+                    <p class="text-lg">"Our brand finally feels aligned with our mission. Their process helped us define what we stand for visually and strategically."</p>
+                    <div class="pt-2">
+                        <h4 class="font-bold">Daniel Cho</h4>
+                        <p class="text-sm text-gray-600">Nonprofit Executive</p>
+                    </div>
+                </div>
+     
+                <div class="testimonial-card p-6 bg-gray-50 rounded-2xl space-y-4">
+                    <div class="text-yellow-500 text-xl">★★★★★</div>
+                    <p class="text-lg">"iDEV helped us go from zero to launch with confidence. Their templates saved us weeks of work."</p>
+                    <div class="pt-2">
+                        <h4 class="font-bold">Ava Nishi</h4>
+                        <p class="text-sm text-gray-600">First-Time Entrepreneur</p>
+                    </div>
+                </div>
+
+                <div class="testimonial-card p-6 bg-gray-50 rounded-2xl space-y-4 mr-6 md:mr-16 lg:mr-32">
+                    <div class="text-yellow-500 text-xl">★★★★★</div>
+                    <p class="text-lg">"It's rare to find a design partner who is strategic and insanely creative. These guys get both."</p>
+                    <div class="pt-2">
+                        <h4 class="font-bold">Martin Gomez</h4>
+                        <p class="text-sm text-gray-600">Brand Consultant</p>
+                    </div>
+                </div>
+            </div>
+        </section> -->
+
+        <!-- FAQ Section -->
+        <section class="py-20 md:py-32 px-6 bg-gray-50">
+             <div class="container mx-auto grid lg:grid-cols-2 gap-12 items-start">
+                <div>
+                    <p class="text-sm text-gray-500 mb-4">{ FAQ }</p>
+                    <h2 class="text-4xl md:text-6xl font-bold mb-12">CLEAR SOLUTIONS TO YOUR CONCERNS</h2>
+                    <div class="w-full h-[400px] rounded-2xl overflow-hidden">
+                        <img src="img/generated_image_1.png" alt="Team meeting" class="w-full h-full object-cover">
+                    </div>
+                </div>
+                <div class="space-y-4 lg:pt-16" id="faq-container">
+                    <!-- FAQ 1 -->
+                    <div class="faq-item border-b border-gray-300">
+                        <div class="faq-header flex justify-between items-center py-6 cursor-pointer">
+                            <h4 class="text-xl font-semibold">What is included in your branding services?</h4>
+                            <span class="plus-icon text-3xl font-light text-gray-400">+</span>
+                        </div>
+                        <div class="faq-content">
+                            <p class="text-gray-600 text-lg">Our branding services include brand strategy, logo design, style guides, and all visual assets needed to launch your brand.</p>
+                        </div>
+                    </div>
+                    <!-- FAQ 2 -->
+                    <div class="faq-item border-b border-gray-300">
+                        <div class="faq-header flex justify-between items-center py-6 cursor-pointer">
+                            <h4 class="text-xl font-semibold">How long does it take to complete a project?</h4>
+                            <span class="plus-icon text-3xl font-light text-gray-400">+</span>
+                        </div>
+                        <div class="faq-content">
+                            <p class="text-gray-600 text-lg">A typical website project takes 6-8 weeks, while branding can take 4-6 weeks. This can vary based on project scope.</p>
+                        </div>
+                    </div>
+                     <!-- FAQ 3 -->
+                    <div class="faq-item border-b border-gray-300">
+                        <div class="faq-header flex justify-between items-center py-6 cursor-pointer">
+                            <h4 class="text-xl font-semibold">Do you offer mobile-friendly designs?</h4>
+                            <span class="plus-icon text-3xl font-light text-gray-400">+</span>
+                        </div>
+                        <div class="faq-content">
+                            <p class="text-gray-600 text-lg">Yes, all websites we design and develop are fully responsive and optimized for all devices, including mobile phones and tablets.</p>
+                        </div>
+                    </div>
+                     <!-- FAQ 4 -->
+                    <div class="faq-item border-b border-gray-300">
+                        <div class="faq-header flex justify-between items-center py-6 cursor-pointer">
+                            <h4 class="text-xl font-semibold">Can you redesign an existing website?</h4>
+                            <span class="plus-icon text-3xl font-light text-gray-400">+</span>
+                        </div>
+                        <div class="faq-content">
+                            <p class="text-gray-600 text-lg">Absolutely. We love breathing new life into existing websites, improving their design, performance, and user experience.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Insights Section -->
+        <!-- <section class="py-20 md:py-32 px-6">
+            <div class="container mx-auto">
+                <p class="text-sm text-gray-500 mb-4">{ Our Insights }</p>
+                <h2 class="text-4xl md:text-6xl font-bold mb-12">STAY AHEAD WITH THE LATEST IN DIGITAL MARKETING</h2>
+                <div class="grid lg:grid-cols-3 gap-8">
+                  
+                    <a href="#" class="space-y-4 group">
+                        <div class="w-full h-80 rounded-2xl overflow-hidden">
+                            <img src="https://placehold.co/600x400/FFC0CB/000?text=AI+Art" alt="Abstract AI art" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        </div>
+                        <p class="text-sm text-gray-500">May 5, 2025 / Insights</p>
+                        <h3 class="text-2xl font-bold group-hover:text-[#ff4d4d] transition-colors">The Future of AI in Digital Marketing</h3>
+                    </a>
+                   
+                    <a href="#" class="space-y-4 group">
+                        <div class="w-full h-80 rounded-2xl overflow-hidden">
+                            <img src="https://placehold.co/600x400/C0CBFF/000?text=Robots" alt="Robots" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        </div>
+                        <p class="text-sm text-gray-500">May 5, 2025 / Insights</p>
+                        <h3 class="text-2xl font-bold group-hover:text-[#ff4d4d] transition-colors">The Role of Artificial Intelligence in Modern Digital Marketing</h3>
+                    </a>
+              
+                    <a href="#" class="space-y-4 group">
+                        <div class="w-full h-80 rounded-2xl overflow-hidden">
+                            <img src="https://placehold.co/600x400/CBFFC0/000?text=Trends" alt="Digital trends" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300">
+                        </div>
+                        <p class="text-sm text-gray-500">May 3, 2025 / Marketing</p>
+                        <h3 class="text-2xl font-bold group-hover:text-[#ff4d4d] transition-colors">Top Digital Marketing Trends for 2025</h3>
+                    </a>
+                </div>
+            </div>
+        </section> -->
+
+    </main>
+    
+    <!-- Footer -->
+    <footer id="contact" class="py-20 bg-black text-gray-400 px-6">
+        <div class="container mx-auto">
+             <div class="grid lg:grid-cols-2 gap-16">
+                 <div>
+                    <p class="text-sm text-gray-500 mb-4">{ Get in touch }</p>
+                    <h2 class="text-4xl md:text-6xl font-bold text-white mb-12">LET'S START YOUR PROJECT TODAY</h2>
+                    
+                    <div class="flex items-center space-x-4">
+                        <img src="https://placehold.co/100x100/E0E0E0/000?text=iDEV" alt="iDEV Logo" class="w-16 h-16 rounded-full object-cover">
+                        <div>
+                            <h4 class="text-white font-bold">iDEV Creations</h4>
+                            <p class="text-sm">Email: iDevccv@gmail.com</p>
+                        </div>
+                    </div>
+                    <p class="mt-6 max-w-md text-lg">"At iDEV, we believe in building meaningful digital experiences. Your success is our mission—let's create something incredible together."</p>
+                 </div>
+                 
+                 <!-- Functional Form -->
+                 <form id="contact-form" class="space-y-6">
+                     <div class="grid md:grid-cols-2 gap-6">
+                         <div>
+                             <label for="name" class="block text-sm mb-2">Name</label>
+                             <input type="text" id="name" name="name" required class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff4d4d]">
+                         </div>
+                         <div>
+                             <label for="email" class="block text-sm mb-2">Email</label>
+                             <input type="email" id="email" name="email" required class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff4d4d]">
+                         </div>
+                     </div>
+                     <div>
+                        <label for="service" class="block text-sm mb-2">Service Needed?</label>
+                        <select id="service" name="service" class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff4d4d] appearance-none">
+                            <option>Web Application</option>
+                            <option>Portfolio</option>
+                            <option>Mobile Application</option>
+                            <option>Content Creation</option>
+                            <option>SEO</option>
+                            <option>Digital Marketing</option>
+                            <option>Social Media Handling</option>
+                            <option>Events Management</option>
+                            <option>Building Management System</option>
+                            <option>Consulting</option>
+                        </select>
+                     </div>
+                     <div>
+                        <label for="message" class="block text-sm mb-2">What can I help you with...</label>
+                        <textarea id="message" name="message" rows="4" class="w-full p-3 bg-gray-900 border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#ff4d4d]"></textarea>
+                     </div>
+                     <button type="submit" class="w-full bg-[#ff4d4d] text-white py-4 rounded-lg font-semibold text-lg hover:bg-[#ff2d2d] transition-colors">Submit</button>
+                     <p id="form-success-message" class="text-green-400 text-center hidden">Thank you! Your message has been sent.</p>
+                 </form>
+             </div>
+
+             <!-- Map and Footer Nav -->
+             <div class="grid lg:grid-cols-3 gap-12 mt-24">
+                <div class="lg:col-span-1">
+                    <a href="#" class="font-black text-3xl text-white">iDEV</a>
+                    <p class="mt-4">Contact: 8610582676</p>
+                    <p>Email: iDevccv@gmail.com</p>
+                    <p>Instagram: idevcreations</p>
+                </div>
+                <div class="lg:col-span-1">
+                    <h4 class="text-white font-bold mb-4"></h4>
+                    <div class="flex flex-wrap gap-x-6 gap-y-2">
+                        <a href="#" class="hover:text-white">Home</a>
+                        <a href="#about" class="hover:text-white">About</a>
+                        <a href="#services" class="hover:text-white">Services</a>
+                        <a href="#projects" class="hover:text-white">Projects</a>
+                        <a href="#team" class="hover:text-white">Team</a>
+                        <a href="#contact" class="hover:text-white">Contact</a>
+                    </div>
+                </div>
+                
+             </div>
+             
+             <div class="mt-24 pt-12 border-t border-gray-800 text-center text-sm">
+                 <p>&copy; 2025 iDEV. All Rights Reserved.</p>
+             </div>
+        </div>
+    </footer>
+
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // --- 0. Register GSAP Plugins ---
+            gsap.registerPlugin(ScrollTrigger);
+            
+            // --- 1. Header Scroll Effect ---
+            const header = document.getElementById('main-header');
+            window.addEventListener('scroll', () => {
+                if (window.scrollY > 50) {
+                    header.classList.add('header-scrolled');
+                } else {
+                    header.classList.remove('header-scrolled');
+                }
+            });
+
+            // --- 2. Service Item Hover Effect (Performance Optimized) ---
+            const serviceContainer = document.querySelector('.service-item-container');
+            const serviceItems = document.querySelectorAll('.service-item');
+            const hoverImage = document.querySelector('.service-hover-image');
+            
+            if(serviceContainer && hoverImage) {
+                // Use GSAP's quickTo for smooth, high-performance tracking
+                const xTo = gsap.quickTo(hoverImage, "left", { duration: 0.4, ease: "power3" });
+                const yTo = gsap.quickTo(hoverImage, "top", { duration: 0.4, ease: "power3" });
+                const rotTo = gsap.quickTo(hoverImage, "rotation", { duration: 0.5, ease: "power3" });
+                
+                let lastX = 0;
+                let lastY = 0;
+
+                serviceContainer.addEventListener('mousemove', (e) => {
+                    // Move the image
+                    xTo(e.clientX);
+                    yTo(e.clientY);
+                    
+                    // Calculate tilt based on mouse velocity
+                    const rotX = (e.clientY - lastY) * 0.3;
+                    const rotY = (e.clientX - lastX) * -0.3;
+                    rotTo(rotY); // Only apply one axis of rotation for simplicity
+                    
+                    // Update last positions
+                    lastX = e.clientX;
+                    lastY = e.clientY;
+                });
+                
+                serviceItems.forEach(item => {
+                    item.addEventListener('mouseenter', () => {
+                        const imgUrl = item.getAttribute('data-img');
+                        hoverImage.setAttribute('src', imgUrl);
+                    });
+                });
+            }
+
+            // --- 3. Stat Number Counter Animation (Video Stats) ---
+            gsap.utils.toArray('.stat-number').forEach(elem => {
+                const target = elem.dataset.target;
+                gsap.from(elem, {
+                    textContent: 0,
+                    duration: 2,
+                    ease: "power1.inOut",
+                    snap: { textContent: 1 }, // Snap to whole numbers
+                    scrollTrigger: {
+                        trigger: elem,
+                        start: "top 85%", // Start when 85% from top is visible
+                        toggleActions: "play none none none"
+                    },
+                    onUpdate: function() {
+                        elem.innerHTML = Math.round(this.targets()[0].textContent);
+                    }
+                }).to(elem, { textContent: target, duration: 2, ease: "power1.inOut" }, 0);
+            });
+
+            // --- 4. Project Sticky Stack Animation (Exact Video Match) ---
+            const projectCards = gsap.utils.toArray('.project-card');
+            const stackContainer = document.querySelector('.project-stack-container');
+            
+            // Reverse to get the correct visual stacking order (last in HTML is on top)
+            const cardsInOrder = projectCards.reverse();
+
+            // Set initial states
+            cardsInOrder.forEach((card, i) => {
+                if (i === 0) { // Top card
+                    gsap.set(card, { y: '0vh', scale: 1, zIndex: cardsInOrder.length });
+                } else { // Cards underneath
+                    gsap.set(card, { y: '100vh', scale: 1.05, zIndex: cardsInOrder.length - i });
+                }
+            });
+
+            const stackTimeline = gsap.timeline({
+                scrollTrigger: {
+                    trigger: stackContainer,
+                    start: "top top",
+                    end: "bottom bottom", // End when the bottom of the container hits bottom of viewport
+                    scrub: 1.5, // Smooth scrubbing
+                    pin: '.project-card-wrapper' // Pin the wrapper
+                }
+            });
+
+            // Loop through cards (except the last one)
+            cardsInOrder.slice(0, -1).forEach((card, i) => {
+                const nextCard = cardsInOrder[i + 1];
+
+                stackTimeline
+                    // Animate the CURRENT card (card[i]) "out"
+                    .to(card, {
+                        scale: 0.95, // Scale it down
+                        opacity: 0.5, // Fade it
+                        ease: "power1.in"
+                    }, `stack${i}`)
+                    // Animate the NEXT card (card[i+1]) "in"
+                    .to(nextCard, {
+                        y: '0vh', // Move it to its final position
+                        scale: 1, // Scale it to its final size
+                        ease: "power1.out"
+                    }, `stack${i}`); // Use same label
+            });
+
+
+            // --- 5. Pricing Toggle ---
+            const pricingToggle = document.getElementById('pricing-toggle');
+            const pricingContainer = document.getElementById('pricing-container');
+            
+            if(pricingToggle && pricingContainer) {
+                pricingToggle.addEventListener('click', () => {
+                    pricingToggle.classList.toggle('annual');
+                    
+                    if (pricingToggle.classList.contains('annual')) {
+                        // Show Annual
+                        pricingContainer.classList.remove('show-monthly');
+                        pricingContainer.classList.add('show-annual');
+                    } else {
+                        // Show Monthly
+                        pricingContainer.classList.add('show-monthly');
+                        pricingContainer.classList.remove('show-annual');
+                    }
+                });
+            }
+
+            // --- 6. FAQ Accordion ---
+            const faqContainer = document.getElementById('faq-container');
+            if(faqContainer) {
+                faqContainer.addEventListener('click', (e) => {
+                    const header = e.target.closest('.faq-header');
+                    if (!header) return; // Didn't click a header
+
+                    const faqItem = header.parentElement;
+                    const isActive = faqItem.classList.contains('active');
+
+                    // Close all other items
+                    faqContainer.querySelectorAll('.faq-item').forEach(item => {
+                        item.classList.remove('active');
+                    });
+
+                    // Open the clicked one (if it wasn't already active)
+                    if (!isActive) {
+                        faqItem.classList.add('active');
+                    }
+                });
+            }
+            
+            // --- 7. Functional Contact Form ---
+            const contactForm = document.getElementById('contact-form');
+            const successMessage = document.getElementById('form-success-message');
+            
+            if(contactForm) {
+                contactForm.addEventListener('submit', (e) => {
+                    e.preventDefault(); // Stop the form from actually submitting
+                    
+                    // Get form data
+                    const formData = new FormData(contactForm);
+                    const data = Object.fromEntries(formData.entries());
+                    
+                    // Log data to console (simulation)
+                    console.log("Form Submitted!");
+                    console.log(data);
+                    
+                    // Show success message
+                    contactForm.reset(); // Clear the form
+                    successMessage.classList.remove('hidden');
+                    
+                    // Hide message after 3 seconds
+                    setTimeout(() => {
+                        successMessage.classList.add('hidden');
+                    }, 3000);
+                });
+            }
+
+        });
+    </script>
+</body>
+</html>
